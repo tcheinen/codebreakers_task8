@@ -87,42 +87,7 @@ fn warmup() -> U256 {
 }
 
 fn main() {
-    print!("warming up...");
-    let mut current = warmup();
-    println!("done");
-    println!("starting at n = {}", current);
-    // std::process::exit(0);
-    let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(THREADS)
-        .build()
-        .unwrap();
-    let (sender, receiver) = channel();
 
-    for i in 0..THREADS {
-        let sender2 = sender.clone();
-        pool.spawn(move || try_slice(current, sender2));
-        current += U256::from(INCREMENT);
-    }
-    let mut log = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .append(true)
-        .open("run.log")
-        .unwrap();
-    while let Ok(message) = receiver.recv() {
-        let child_sender = sender.clone();
-        pool.spawn(move || try_slice(current, child_sender));
-        current += U256::from(INCREMENT);
-        match message {
-            TrialResult::Exhausted(num) => {
-                writeln!(&mut log, "{}/{}", num, U256::MAX);
-            }
-            TrialResult::KeyFound(num) => {
-                writeln!(&mut log, "found at {:?}", num);
-                std::process::exit(0);
-            }
-        }
-    }
 }
 
 #[cfg(test)]
@@ -130,27 +95,15 @@ mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
     use primitive_types::U256;
+    use x25519_dalek::PublicKey;
+    use curve25519_dalek::montgomery::MontgomeryPoint;
+    use curve25519_dalek::scalar::Scalar;
 
     #[test]
-    fn test_add_1_to_0() {
-        let mut init = U256::from(0);
-        let mut target = U256::from(1);
-        increment_bytearray(unsafe { std::mem::transmute::<&mut U256, &mut [u8; 32]>(&mut init) });
-        assert_eq!(init, target);
-    }
-    #[test]
-    fn test_add_1_to_255() {
-        let mut init = U256::from(255);
-        let mut target = U256::from(256);
-        increment_bytearray(unsafe { std::mem::transmute::<&mut U256, &mut [u8; 32]>(&mut init) });
-        assert_eq!(init, target);
+    fn sanity_check() {
+        ;
+        let lp_key = MontgomeryPoint(hex!("e8f1fbc853bdd630b7a2eda38c3100fcbe51227748ea9a6d73d5c18b846fb738"));
+        assert_eq!(lp_key, lp_key * Scalar::from_bits(hex!("0000000000000000000000000000000000000000000000000000000000000001")));
     }
 
-    #[test]
-    fn test_add_1_to_0xffffff() {
-        let mut init = U256::from(0xffffff);
-        let mut target = U256::from(0xffffff + 1);
-        increment_bytearray(unsafe { std::mem::transmute::<&mut U256, &mut [u8; 32]>(&mut init) });
-        assert_eq!(init, target);
-    }
 }
