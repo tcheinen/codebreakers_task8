@@ -1,0 +1,30 @@
+[package]
+name = "funny_brute"
+version = "0.1.0"
+authors = ["Teddy Heinen <teddy@heinen.dev>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hex-literal = "0.3"
+itertools = "0.10.1"
+fastrand = "1.5.0"
+atomic-counter = "1.0.1"
+rayon = "1.5"
+salsa20 = {version ="0.9.0", features = ["expose-core", "hsalsa20"] }
+primitive-types = "0.10.1"
+cipher = "0.3.0"
+dmsort = "1.0.0"
+x25519-dalek = "1"
+curve25519-dalek = "3"
+[profile.release]
+lto = "thin"
+
+[[bin]]
+path = "src/keybrute.rs"
+name = "keybrute"
+
+[[bin]]
+path = "src/keyslide.rs"
+name = "keyslide"
