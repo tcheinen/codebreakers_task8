@@ -19,6 +19,7 @@ dmsort = "1.0.0"
 x25519-dalek = "1"
 curve25519-dalek = "3"
 numtoa = "0.2.4"
+sha2 = "0.9.8"
 
 [profile.release]
 lto = "thin"

@@ -2,25 +2,48 @@ use itertools::Itertools;
 use std::fmt::Write;
 use numtoa::NumToA;
 use hex_literal::hex;
-unsafe fn mutate(name_len: usize) {
+use sha2::{Sha256, Digest};
+use std::cell::UnsafeCell;
 
+unsafe fn mutate(name_buf: &[u8]) {
+    let mut buf: [u8; 32] = [0u8; 32];
     // let mut session_key = "A+2.1.3.0+1609480800".as_bytes_mut();
-    let mut session_key = hex!("412b322e312e332e302b313630393438303830300000");
-    let  (name, rem) = session_key.split_at_mut(1);
-    let  (version, time) = rem.split_at_mut(9);
-    println!("{:?}", name);
-    println!("{:?}", version);
-    println!("{:?}", time);
+    // let mut session_key = hex!("412b322e312e332e302b313630393438303830300000");
+    // let mut buf2 = buf.get_mut();
+    let session_key = {
+        {
+            let (name, rem) = buf.split_at_mut(name_buf.len());
+            let (version, rem) = rem.split_at_mut(9);
+            let (time, rem) = rem.split_at_mut(11);
+            name.copy_from_slice(name_buf);
+            version.copy_from_slice("+2.1.3.0+".as_bytes());
+        }
+        let (session_key, _) = buf.split_at_mut(name_buf.len() + 9 + 11);
+        session_key
+    };
     for i in 1609480800..1633669093 { // 2021/01/01 to 2021/10/08 (today)
 
-        i.numtoa(10, time);
+        i.numtoa(10, &mut session_key[name_buf.len()+9..name_buf.len()+9+11]);
+        println!("{:?}", session_key);
+        let mut hasher = Sha256::new();
+        let hash = Sha256::digest(&session_key);
+
+        // sodium_oxide::crypto::secretbox::xsalsa20poly1305::open
+        // use first 24 bytes as nonce
+        // use remainder as ciphertext
+        // use hash as key?
+        // brrr
+        println!("{:?}", hash);
         // println!("{}", std::mem::transmute::<&[u8], &str>(time))
         // this is degenerate
     }
 }
 
 fn main() {
+
+    let decrypt = hex!("ce1f322befe0182c8ce74930906c46303be3e0c40e48933a84533d33854a6cf5f36a0eafba0c2516932afb607bba554c409127da6fffef158e0a9bd29f341ba56a39c76fc058131d589312030c78");
+    // format is known to be sky+2.1.3.0+time
     unsafe {
-        mutate(1);
+        mutate(&hex!("505050"));
     }
 }
