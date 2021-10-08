@@ -18,6 +18,8 @@ cipher = "0.3.0"
 dmsort = "1.0.0"
 x25519-dalek = "1"
 curve25519-dalek = "3"
+numtoa = "0.2.4"
+
 [profile.release]
 lto = "thin"
 
@@ -28,3 +30,7 @@ name = "keybrute"
 [[bin]]
 path = "src/keyslide.rs"
 name = "keyslide"
+
+[[bin]]
+path = "src/session.rs"
+name = "session"
