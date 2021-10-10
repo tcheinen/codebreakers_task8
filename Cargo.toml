@@ -18,3 +18,12 @@ ring = "0.16.20"
 
 [profile.release]
 debug = true
+
+
+[[bin]]
+name = "brute"
+path = "src/main.rs"
+
+[[bin]]
+name = "decrypt"
+path = "src/decrypt.rs"
