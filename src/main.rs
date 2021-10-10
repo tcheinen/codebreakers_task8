@@ -23,17 +23,17 @@ struct Ciphertext {
 const CIPHERTEXTS: [Ciphertext; 3] = [
     Ciphertext {
         start:1615896094 - 5,
-        end: 1615896094,
+        end: 1615896094+1,
         data: hex!("3e89c1c19521e7a02005ad47330a19b2e59af71dacbc0c935f6d3e150c9d095882d4c5b29dc7c3aea646563111e88d9ffdb5a8b412f4750d9d01091c4868c344ea35122b5c0353253eb1c4585ffb")
     },
     Ciphertext {
         start: 1615896116 - 5,
-        end: 1615896116,
+        end: 1615896116+1,
         data: hex!("d4522bf8f4f1cfae978f250cc9540ac39ea3ce767ec431224153136c3f1a3b9582b955598297e0edcd68ec7fb27461f1be66d1ffbb40b548b068d05d5d3d20842dc7b73259421c6f2eef2f0a844e")
     },
     Ciphertext {
         start: 1615896139 - 5,
-        end: 1615896139,
+        end: 1615896139+1,
         data: hex!("95146b362d2ca484e608308547dbeed8af8ce7bbc00ffdf92bc572d6bd4f0d7210b647a2cadacba9d2870101d854cc78ee340ca9f0ea277e34bbdb4badc969de55fd348ae7b746b5b0c023dbad70")
     },
 ];
@@ -65,8 +65,7 @@ unsafe fn brute_range(
             );
             // println!("{:?}", String::from_utf8_lossy(session_key));
             let digest = sha256_digest(&session_key[..name_in.len() + 9 + 10]);
-            let hash = digest.as_ref();
-            let key = Key::from_slice(&hash).expect("lmao invalid key");
+            let key = Key::from_slice(digest.as_ref()).expect("lmao invalid key");
             let nonce = Nonce::from_slice(&ciphertext.data[4..28]).expect("lmao invalid nonce");
             let cipher = &ciphertext.data[28..];
             if let Ok(inner) =
@@ -74,7 +73,7 @@ unsafe fn brute_range(
             {
                 results.push((
                     String::from_utf8_lossy(&session_key[..name_in.len() + 9 + 10]).to_string(),
-                    ciphertext.data.clone(),
+                    ciphertext.data,
                     inner,
                 ));
             }
@@ -90,60 +89,67 @@ const RANGE: std::ops::RangeInclusive<u8> = LOWER..=UPPER;
 const NAME_LEN: usize = 6;
 const CHUNK_SIZE: usize = 100;
 
-
+const NAMES: &str = include_str!("../names.txt");
+const VERSIONS: &str = include_str!("../versions.txt");
 
 fn main() {
     let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(4)
+        .num_threads(72)
         .build()
         .unwrap();
-    pool.install(|| {
-        let names_str = std::fs::read_to_string("names_staged.txt").unwrap();
-        let versions_str = std::fs::read_to_string("versions.txt").unwrap();
-        let pb = ProgressBar::new((names_str.chars().filter(|x| x == &'\n').count() * versions_str.chars().filter(|x| x == &'\n').count()) as u64);
-        pb.set_style(
+
+    let versions_len = VERSIONS.split('\n').count();
+    let pb = ProgressBar::new(
+        (NAMES.chars().filter(|x| x == &'\n').count()
+            * VERSIONS.chars().filter(|x| x == &'\n').count()) as u64,
+    );
+    pb.set_style(
             ProgressStyle::default_bar()
                 .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos:>7}/{len:7} ({eta})")
                 .progress_chars("#>-")
                 .with_key("eta", |state| {
                     format!(
                         "{}::{}::{}",
-                        (state.eta().as_secs() / 60 / 60) % 60,
+                        (state.eta().as_secs() / 60 / 60),
                         (state.eta().as_secs() / 60) % 60,
                         state.eta().as_secs() % 60,
                     )
                 }),
         );
-        pb.set_draw_delta(10000);
+    pb.set_draw_delta(10000);
 
+    let names = NAMES.split('\n').map(|x| x.trim_end());
 
-        let names = names_str
-            .split("\n")
-            .map(|x| x.trim_end());
-        let versions = versions_str
-            .split("\n")
-            .map(|x| x.trim_end());
+    pool.scope(|s| {
+        for name in names {
+            let pb2 = pb.clone();
 
-
-        iproduct!(names, versions)
-            .par_bridge()
-            .progress_with(pb)
-            .for_each(|(name, version)| {
-                use std::io::Write;
-                for (session_key, session, plaintext) in
-                unsafe { brute_range(name, version, &CIPHERTEXTS) }
-                {
-                    let mut log = OpenOptions::new().write(true).append(true).open("decrypted.log").unwrap();
-                    writeln!(
-                        &mut log,
-                        "decrypted {} with a session key of {} for a plaintext of {}",
-                        &hex::encode(session),
-                        session_key,
-                        &hex::encode(plaintext)
-                    );
+            s.spawn(move |_| {
+                for version in VERSIONS.split('\n').map(|x| x.trim_end()) {
+                    use std::io::Write;
+                    for (session_key, session, plaintext) in
+                        unsafe { brute_range(name, version, &CIPHERTEXTS) }
+                    {
+                        let mut log = OpenOptions::new()
+                            .write(true)
+                            .append(true)
+                            .open("decrypted.log")
+                            .unwrap();
+                        writeln!(
+                            &mut log,
+                            "decrypted {} with a session key of {} for a plaintext of {}",
+                            &hex::encode(session),
+                            session_key,
+                            &hex::encode(plaintext)
+                        )
+                        .expect("couldn't write to decryption log oops");
+                    }
                 }
+                pb2.inc(versions_len as u64);
             });
+        }
     });
+
 }
 
 #[cfg(test)]
