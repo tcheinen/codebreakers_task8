@@ -22,8 +22,8 @@ struct Ciphertext {
 
 const CIPHERTEXTS: [Ciphertext; 1] = [
     Ciphertext {
-        start: 1615896139-100,
-        end: 1615896139+10,
+        start: 1615896139-5,
+        end: 1615896139+5,
         data: hex!("95146b362d2ca484e608308547dbeed8af8ce7bbc00ffdf92bc572d6bd4f0d7210b647a2cadacba9d2870101d854cc78ee340ca9f0ea277e34bbdb4badc969de55fd348ae7b746b5b0c023dbad70")
     },
 ];
@@ -99,7 +99,7 @@ fn main() {
                 .progress_chars("#>-")
                 .with_key("eta", |state| {
                     format!(
-                        "{}:{}:{}",
+                        "{}:{:0>2}:{:0>2}",
                         (state.eta().as_secs() / 60 / 60),
                         (state.eta().as_secs() / 60) % 60,
                         state.eta().as_secs() % 60,
@@ -302,6 +302,28 @@ mod tests {
                 &[Ciphertext {
                     start: 1615896117,
                     end: 1615896117 + 1,
+                    data: control_ciphertext,
+                }],
+            )
+        };
+        assert_eq!(res[0].0, session_key_known);
+        assert_eq!(res[0].2, control_message);
+    }
+
+    #[test]
+    fn decrypt_op() {
+        // DIB
+        let session_key_known = "op+0.7.5.5+1615896140";
+        let control_message =
+            hex!("19b0a81d4d00000200024d0800102d8ef48c17c44a79842eb8fc25242763eda9f5ce");
+        let control_ciphertext = hex!("95146b362d2ca484e608308547dbeed8af8ce7bbc00ffdf92bc572d6bd4f0d7210b647a2cadacba9d2870101d854cc78ee340ca9f0ea277e34bbdb4badc969de55fd348ae7b746b5b0c023dbad70");
+        let res = unsafe {
+            brute_range(
+                "op",
+                "0.7.5.5",
+                &[Ciphertext {
+                    start: 1615896140,
+                    end: 1615896140 + 1,
                     data: control_ciphertext,
                 }],
             )
