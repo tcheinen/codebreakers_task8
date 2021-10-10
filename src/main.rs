@@ -4,9 +4,15 @@ use itertools::iproduct;
 use itertools::Itertools;
 use numtoa::NumToA;
 use rayon::prelude::*;
-use sha2::{Digest, Sha256};
+use ring::digest::{Context, Digest, SHA256};
 use sodiumoxide::crypto::secretbox::xsalsa20poly1305::{Key, Nonce};
 use std::fs::OpenOptions;
+
+fn sha256_digest(data: &[u8]) -> Digest {
+    let mut context = Context::new(&SHA256);
+    context.update(data);
+    context.finish()
+}
 
 struct Ciphertext {
     start: usize,
@@ -58,7 +64,8 @@ unsafe fn brute_range(
                 &mut session_key[name_in.len() + 8..name_in.len() + 9 + 10],
             );
             // println!("{:?}", String::from_utf8_lossy(session_key));
-            let hash = Sha256::digest(&session_key[..name_in.len() + 9 + 10]);
+            let digest = sha256_digest(&session_key[..name_in.len() + 9 + 10]);
+            let hash = digest.as_ref();
             let key = Key::from_slice(&hash).expect("lmao invalid key");
             let nonce = Nonce::from_slice(&ciphertext.data[4..28]).expect("lmao invalid nonce");
             let cipher = &ciphertext.data[28..];
@@ -82,52 +89,12 @@ const RANGE: std::ops::RangeInclusive<u8> = LOWER..=UPPER;
 
 const NAME_LEN: usize = 6;
 const CHUNK_SIZE: usize = 100;
-// fn brute_name() {
-//     let pool = rayon::ThreadPoolBuilder::new()
-//         .num_threads(4)
-//         .build()
-//         .unwrap();
-//     pool.install(|| {
-//     let pb = ProgressBar::new((RANGE.size_hint().0.pow(NAME_LEN as u32)) as u64);
-//     pb.set_style(
-//         ProgressStyle::default_bar()
-//             .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos:>7}/{len:7} ({eta})")
-//             .with_key("eta", |state| {
-//                 format!(
-//                     "{}::{}::{}",
-//                     (state.eta().as_secs() / 60 / 60) % 60,
-//                     (state.eta().as_secs() / 60) % 60,
-//                     state.eta().as_secs() % 60,
-//                 )
-//             }),
-//     );
-//     pb.set_draw_delta(100);
-//
-//     RANGE
-//         .cartesian_power(NAME_LEN)
-//         .into_iter()
-//         .par_bridge()
-//         .progress_with(pb)
-//         .for_each(|name| {
-//             let mut buf = [0u8; NAME_LEN];
-//             buf.copy_from_slice(name.as_slice());
-//             for (session_key, session, plaintext) in
-//                 unsafe { brute_range(std::mem::transmute(buf.as_slice()), "2.1.3.0", &CIPHERTEXTS) }
-//             {
-//                 println!(
-//                     "decrypted {} with a session key of {} for a plaintext of {}",
-//                     &hex::encode(session),
-//                     session_key,
-//                     &hex::encode(plaintext)
-//                 );
-//             }
-//         });
-//     });
-// }
 
-fn brute_versions() {
+
+
+fn main() {
     let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(72)
+        .num_threads(4)
         .build()
         .unwrap();
     pool.install(|| {
@@ -158,88 +125,26 @@ fn brute_versions() {
             .map(|x| x.trim_end());
 
 
-    iproduct!(names, versions)
-        .par_bridge()
-        .progress_with(pb)
-        .for_each(|(name, version)| {
-            use std::io::Write;
-            for (session_key, session, plaintext) in
+        iproduct!(names, versions)
+            .par_bridge()
+            .progress_with(pb)
+            .for_each(|(name, version)| {
+                use std::io::Write;
+                for (session_key, session, plaintext) in
                 unsafe { brute_range(name, version, &CIPHERTEXTS) }
-            {
-                let mut log = OpenOptions::new().write(true).append(true).open("decrypted.log").unwrap();
-                writeln!(
-                    &mut log,
-                    "decrypted {} with a session key of {} for a plaintext of {}",
-                    &hex::encode(session),
-                    session_key,
-                    &hex::encode(plaintext)
-                );
-            }
-        });
+                {
+                    let mut log = OpenOptions::new().write(true).append(true).open("decrypted.log").unwrap();
+                    writeln!(
+                        &mut log,
+                        "decrypted {} with a session key of {} for a plaintext of {}",
+                        &hex::encode(session),
+                        session_key,
+                        &hex::encode(plaintext)
+                    );
+                }
+            });
     });
 }
-fn main() {
-    brute_versions();
-}
-// fn main() {
-//     let pool = rayon::ThreadPoolBuilder::new()
-//         .num_threads(4)
-//         .build()
-//         .unwrap();
-//
-//     pool.install(|| {
-//         let decryption_log = Arc::new(Mutex::new(
-//             std::fs::OpenOptions::new()
-//                 .create(true)
-//                 .append(true)
-//                 .open("decrypted.log")
-//                 .expect("couldn't create decryption log"),
-//         ));
-//         let mut name_buf = [0u8; 32];
-//         let pb = ProgressBar::new(((UPPER - LOWER) as u64).pow(NAME_LEN));
-//         pb.set_style(
-//             ProgressStyle::default_bar()
-//                 .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] ({eta})")
-//                 .with_key("eta", |state| {
-//                     format!(
-//                         "{}::{}::{}",
-//                         (state.eta().as_secs() / 60 / 60) % 60,
-//                         (state.eta().as_secs() / 60) % 60,
-//                         state.eta().as_secs() % 60,
-//                     )
-//                 }),
-//         );
-//
-//         unsafe {
-//             // // try_name("AA".as_bytes());
-//             // RANGE
-//             //     .combinations_with_replacement(NAME_LEN as usize)
-//             include_str!("../malenames-usa-top1000.txt")
-//                 .split('\n')
-//                 .map(|x| x.trim_end())
-//                 .map(|x| x.as_bytes())
-//                 .par_bridge()
-//                 .progress_with(pb)
-//                 .for_each(|b0| {
-//                     // let mut buf2 = name_buf.clone();
-//
-//                     // buf2[..b0.len()].copy_from_slice(b0);
-//                     for (session_key, session, plaintext) in try_name(b0) {
-//                         let mut log = decryption_log.lock().expect("locked mutex");
-//                         writeln!(
-//                             &mut log,
-//                             "decrypted {} with a session key of {} for a plaintext of {}",
-//                             &hex::encode(session),
-//                             session_key,
-//                             &hex::encode(plaintext)
-//                         );
-//                     }
-//                 });
-//         }
-//         println!("done :)");
-//         // pb.finish_with_message("done");
-//     });
-// }
 
 #[cfg(test)]
 mod tests {
@@ -255,7 +160,7 @@ mod tests {
             hex!("19b0a81d4d00000200024d080010e81efb2bd4bff29a5b81364b3b635430eda9f5ce");
         let control_nonce = hex!("a9d810288ca8b09c05628f538447078f981921154cc44a62");
         let control_ciphertext = hex!("f5080b42a9d810288ca8b09c05628f538447078f981921154cc44a6277dd971e105a01f551bc84d165ef0c77365448852c5b1d3a03c42fb6d1d6ac2d1f7fb0522766b39b3ce34015384995c6deaa");
-        assert_eq!(control_hash, Sha256::digest(session_key).as_slice());
+        assert_eq!(control_hash, sha256_digest(session_key).as_ref());
         assert_eq!(
             &control_ciphertext[28..],
             sodiumoxide::crypto::secretbox::xsalsa20poly1305::seal(
