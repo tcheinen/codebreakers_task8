@@ -127,11 +127,11 @@ const CHUNK_SIZE: usize = 100;
 
 fn brute_versions() {
     let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(4)
+        .num_threads(72)
         .build()
         .unwrap();
     pool.install(|| {
-        let names_str = std::fs::read_to_string("name_staged.txt").unwrap();
+        let names_str = std::fs::read_to_string("names_staged.txt").unwrap();
         let versions_str = std::fs::read_to_string("versions.txt").unwrap();
         let pb = ProgressBar::new((names_str.chars().filter(|x| x == &'\n').count() * versions_str.chars().filter(|x| x == &'\n').count()) as u64);
         pb.set_style(
