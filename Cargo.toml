@@ -1,5 +1,5 @@
 [package]
-name = "funny_brute"
+name = "codebreakers_task8_brute"
 version = "0.1.0"
 authors = ["Teddy Heinen <teddy@heinen.dev>"]
 edition = "2018"
@@ -8,26 +8,13 @@ edition = "2018"
 
 [dependencies]
 hex-literal = "0.3"
-itertools = "0.10.1"
-fastrand = "1.5.0"
-atomic-counter = "1.0.1"
+#itertools = "0.10.1"
+itertools = { git = "https://github.com/iago-lito/itertools", branch="cartesian_power" }
 rayon = "1.5"
-salsa20 = {version ="0.9.0", features = ["expose-core", "hsalsa20"] }
-primitive-types = "0.10.1"
-cipher = "0.3.0"
-dmsort = "1.0.0"
-x25519-dalek = "1"
-curve25519-dalek = "3"
 numtoa = "0.2.4"
 sha2 = "0.9.8"
 sodiumoxide = "0.2.7"
 indicatif = { version = "0.17.0-beta.1", features = ["rayon"]}
-xsalsa20poly1305 = "0.8.0"
 hex = "0.4.3"
 
 [profile.release]
-lto = "thin"
-debug = true
-[[bin]]
-path = "src/session.rs"
-name = "session"
