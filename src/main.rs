@@ -20,20 +20,10 @@ struct Ciphertext {
     data: [u8; 78],
 }
 
-const CIPHERTEXTS: [Ciphertext; 3] = [
+const CIPHERTEXTS: [Ciphertext; 1] = [
     Ciphertext {
-        start:1615896094 - 5,
-        end: 1615896094+1,
-        data: hex!("3e89c1c19521e7a02005ad47330a19b2e59af71dacbc0c935f6d3e150c9d095882d4c5b29dc7c3aea646563111e88d9ffdb5a8b412f4750d9d01091c4868c344ea35122b5c0353253eb1c4585ffb")
-    },
-    Ciphertext {
-        start: 1615896116 - 5,
-        end: 1615896116+1,
-        data: hex!("d4522bf8f4f1cfae978f250cc9540ac39ea3ce767ec431224153136c3f1a3b9582b955598297e0edcd68ec7fb27461f1be66d1ffbb40b548b068d05d5d3d20842dc7b73259421c6f2eef2f0a844e")
-    },
-    Ciphertext {
-        start: 1615896139 - 5,
-        end: 1615896139+1,
+        start: 1615896139-100,
+        end: 1615896139+10,
         data: hex!("95146b362d2ca484e608308547dbeed8af8ce7bbc00ffdf92bc572d6bd4f0d7210b647a2cadacba9d2870101d854cc78ee340ca9f0ea277e34bbdb4badc969de55fd348ae7b746b5b0c023dbad70")
     },
 ];
@@ -105,11 +95,11 @@ fn main() {
     );
     pb.set_style(
             ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos:>7}/{len:7} ({eta})")
+                .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos:>7}/{len:7} ({per_sec}) ({eta})")
                 .progress_chars("#>-")
                 .with_key("eta", |state| {
                     format!(
-                        "{}::{}::{}",
+                        "{}:{}:{}",
                         (state.eta().as_secs() / 60 / 60),
                         (state.eta().as_secs() / 60) % 60,
                         state.eta().as_secs() % 60,
@@ -149,7 +139,7 @@ fn main() {
             });
         }
     });
-
+    pb.finish_with_message("done!");
 }
 
 #[cfg(test)]
@@ -256,6 +246,7 @@ mod tests {
 
     #[test]
     fn decrypt_nonie() {
+        // DIB session
         let session_key_known = "nonie+0.2.0.0+1615896077";
         let control_message =
             hex!("19b0a81d4d00000200024d08001008d8cf0b62364dd18f81bc08ca5c8c4deda9f5ce");
@@ -267,6 +258,50 @@ mod tests {
                 &[Ciphertext {
                     start: 1615896077,
                     end: 1615896077 + 1,
+                    data: control_ciphertext,
+                }],
+            )
+        };
+        assert_eq!(res[0].0, session_key_known);
+        assert_eq!(res[0].2, control_message);
+    }
+
+
+    #[test]
+    fn decrypt_aggie() {
+        // DIB session
+        let session_key_known = "aggie+1.4.3.9+1615896094";
+        let control_message =
+            hex!("19b0a81d4d00000200024d080010c090561a74b64837bb6fdda73d84d698eda9f5ce");
+        let control_ciphertext = hex!("3e89c1c19521e7a02005ad47330a19b2e59af71dacbc0c935f6d3e150c9d095882d4c5b29dc7c3aea646563111e88d9ffdb5a8b412f4750d9d01091c4868c344ea35122b5c0353253eb1c4585ffb");
+        let res = unsafe {
+            brute_range(
+                "aggie",
+                "1.4.3.9",
+                &[Ciphertext {
+                    start: 1615896094,
+                    end: 1615896094 + 1,
+                    data: control_ciphertext,
+                }],
+            )
+        };
+        assert_eq!(res[0].0, session_key_known);
+        assert_eq!(res[0].2, control_message);
+    }
+
+    #[test]
+    fn decrypt_clea() {
+        let session_key_known = "clea+1.5.1.6+1615896117";
+        let control_message =
+            hex!("19b0a81d4d00000200024d080010a676f290ada8495680897d52090cd4ffeda9f5ce");
+        let control_ciphertext = hex!("d4522bf8f4f1cfae978f250cc9540ac39ea3ce767ec431224153136c3f1a3b9582b955598297e0edcd68ec7fb27461f1be66d1ffbb40b548b068d05d5d3d20842dc7b73259421c6f2eef2f0a844e");
+        let res = unsafe {
+            brute_range(
+                "clea",
+                "1.5.1.6",
+                &[Ciphertext {
+                    start: 1615896117,
+                    end: 1615896117 + 1,
                     data: control_ciphertext,
                 }],
             )
