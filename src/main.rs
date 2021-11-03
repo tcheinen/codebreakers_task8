@@ -75,7 +75,7 @@ unsafe fn brute_range(
 const LOWER: u8 = 0x61;
 const UPPER: u8 = 0x7a;
 const RANGE: std::ops::RangeInclusive<u8> = LOWER..=UPPER;
-
+const RANGE_LEN: u64 = 11;
 const NAME_LEN: usize = 6;
 const CHUNK_SIZE: usize = 100;
 
@@ -84,14 +84,15 @@ const VERSIONS: &str = include_str!("../versions.txt");
 
 fn main() {
     let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(72)
+        .num_threads(8)
         .build()
         .unwrap();
 
     let versions_len = VERSIONS.split('\n').count();
     let pb = ProgressBar::new(
         (NAMES.chars().filter(|x| x == &'\n').count()
-            * VERSIONS.chars().filter(|x| x == &'\n').count()) as u64,
+            * VERSIONS.chars().filter(|x| x == &'\n').count()) as u64
+            * RANGE_LEN,
     );
     pb.set_style(
             ProgressStyle::default_bar()
@@ -135,7 +136,7 @@ fn main() {
                         .expect("couldn't write to decryption log oops");
                     }
                 }
-                pb2.inc(versions_len as u64);
+                pb2.inc(versions_len as u64 * RANGE_LEN);
             });
         }
     });
@@ -265,7 +266,6 @@ mod tests {
         assert_eq!(res[0].0, session_key_known);
         assert_eq!(res[0].2, control_message);
     }
-
 
     #[test]
     fn decrypt_aggie() {
