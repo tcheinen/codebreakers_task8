@@ -19,7 +19,6 @@ fn main() {
         .map(|x| x.trim_end().to_string())
         .map(|x| hex::decode(x).unwrap())
         .map(|x| {
-
             let nonce = Nonce::from_slice(&x[4..28]).expect("lmao invalid nonce");
             let cipher = &x[28..];
             if let Ok(inner) =
